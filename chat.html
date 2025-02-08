@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Board</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            text-align: center;
+        }
+        .container {
+            width: 90%;
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .post-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 10px;
+        }
+        input, textarea, button, select {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .post {
+            background: #ffffff;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            position: relative;
+            flex-direction: column;
+        }
+        .profile-pic {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #ddd;
+        }
+        .post-content {
+            flex-grow: 1;
+        }
+        .like-btn, .reply-btn {
+            background: #1877f2;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        .reply-section {
+            display: none;
+            margin-top: 5px;
+        }
+        .topic-section {
+            margin-top: 20px;
+            padding: 10px;
+            background: #ffeb3b;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Social Board</h1>
+        
+        <div class="topic-section">
+            <h3>📢 Topic of the Day</h3>
+            <select id="topic">
+                <option>Favorite School Subject</option>
+                <option>Best Weekend Activity</option>
+                <option>Future Dream Job</option>
+            </select>
+        </div>
+
+        <div class="post-form">
+            <input type="text" id="username" placeholder="Enter your name (required)">
+            <input type="file" id="profilePicInput" accept="image/*">
+            <textarea id="thought" placeholder="What's on your mind?"></textarea>
+            <button onclick="addPost()">Post</button>
+        </div>
+        
+        <div id="posts"></div>
+    </div>
+
+    <script>
+        let userId = Math.random().toString(36).substr(2, 9);
+
+        function addPost() {
+            let username = document.getElementById("username").value;
+            let profilePicInput = document.getElementById("profilePicInput").files[0];
+            const thought = document.getElementById("thought").value;
+            
+            if (!username) {
+                alert("Username is required!");
+                return;
+            }
+            if (!thought) {
+                alert("Please enter a thought!");
+                return;
+            }
+
+            let profilePicURL = "https://via.placeholder.com/50";
+            if (profilePicInput) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    profilePicURL = event.target.result;
+                    createPostElement(username, profilePicURL, thought);
+                };
+                reader.readAsDataURL(profilePicInput);
+            } else {
+                createPostElement(username, profilePicURL, thought);
+            }
+        }
+
+        function createPostElement(username, profilePicURL, thought) {
+            const postContainer = document.getElementById("posts");
+            const post = document.createElement("div");
+            post.classList.add("post");
+            post.dataset.owner = userId;
+            post.innerHTML = `
+                <img src="${profilePicURL}" class="profile-pic">
+                <div class="post-content">
+                    <strong>${username}</strong>
+                    <p contenteditable="true" oninput="preventEdit(this)">${thought}</p>
+                    <button class="like-btn" onclick="likePost(this)">❤️ Like (<span>0</span>)</button>
+                    <button class="reply-btn" onclick="toggleReply(this)">💬 Reply</button>
+                    <div class="reply-section">
+                        <input type="text" class="reply-username" placeholder="Enter your username (required)">
+                        <input type="text" class="reply-input" placeholder="Write a reply...">
+                        <button onclick="addReply(this)">Post Reply</button>
+                    </div>
+                </div>
+            `;
+            postContainer.prepend(post);
+        }
+
+        function likePost(button) {
+            let likeCount = button.querySelector("span").innerText;
+            likeCount = parseInt(likeCount) + 1;
+            button.querySelector("span").innerText = likeCount;
+        }
+
+        function toggleReply(button) {
+            const replySection = button.nextElementSibling;
+            replySection.style.display = replySection.style.display === "block" ? "none" : "block";
+        }
+
+        function addReply(button) {
+            const replyUsername = button.previousElementSibling.previousElementSibling;
+            const replyInput = button.previousElementSibling;
+            
+            if (!replyUsername.value) {
+                alert("Username is required to reply!");
+                return;
+            }
+            if (!replyInput.value) return;
+
+            const replyDiv = document.createElement("div");
+            replyDiv.style.marginLeft = "20px";
+            replyDiv.innerHTML = `<strong>${replyUsername.value}:</strong> ${replyInput.value}`;
+            button.parentElement.appendChild(replyDiv);
+            replyInput.value = "";
+            replyUsername.value = "";
+        }
+
+        function preventEdit(element) {
+            if (element.parentElement.parentElement.dataset.owner !== userId) {
+                element.contentEditable = "false";
+            }
+        }
+    </script>
+</body>
+</html>
