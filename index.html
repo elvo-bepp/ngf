@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Social Board</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -27,7 +30,7 @@
             background: #fff;
             border-radius: 10px;
         }
-        input, textarea, button, select {
+        input, textarea, button {
             padding: 10px;
             font-size: 14px;
             border-radius: 5px;
@@ -53,55 +56,38 @@
             object-fit: cover;
             background: #ddd;
         }
-        .post-content {
-            flex-grow: 1;
-        }
-        .like-btn, .reply-btn {
-            background: #1877f2;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 5px;
-        }
-        .reply-section {
-            display: none;
-            margin-top: 5px;
-        }
-        .topic-section {
-            margin-top: 20px;
-            padding: 10px;
-            background: #ffeb3b;
-            border-radius: 10px;
-        }
     </style>
 </head>
-<body>
+<body onload="initializePage()">
     <div class="container">
         <h1>📝 Social Board</h1>
-        
-        <div class="topic-section">
-            <h3>📢 Topic of the Day</h3>
-            <select id="topic">
-                <option>Favorite School Subject</option>
-                <option>Best Weekend Activity</option>
-                <option>Future Dream Job</option>
-            </select>
-        </div>
-
         <div class="post-form">
             <input type="text" id="username" placeholder="Enter your name (required)">
             <input type="file" id="profilePicInput" accept="image/*">
             <textarea id="thought" placeholder="What's on your mind?"></textarea>
             <button onclick="addPost()">Post</button>
         </div>
-        
         <div id="posts"></div>
     </div>
 
     <script>
-        let userId = Math.random().toString(36).substr(2, 9);
+        const firebaseConfig = {
+            apiKey: "AIzaSyCKwpHcYjocnQo4gGtIBYmjaFpFDwo08GY",
+            authDomain: "social-board-77b7b.firebaseapp.com",
+            databaseURL: "https://social-board-77b7b-default-rtdb.firebaseio.com/",
+            projectId: "social-board-77b7b",
+            storageBucket: "social-board-77b7b.appspot.com",
+            messagingSenderId: "434445903061",
+            appId: "1:434445903061:web:156047981a14b4c34aee5c"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const storage = firebase.storage();
+
+        function initializePage() {
+            loadPosts();
+        }
 
         function addPost() {
             let username = document.getElementById("username").value;
@@ -117,74 +103,39 @@
                 return;
             }
 
-            let profilePicURL = "https://via.placeholder.com/50";
             if (profilePicInput) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    profilePicURL = event.target.result;
-                    createPostElement(username, profilePicURL, thought);
-                };
-                reader.readAsDataURL(profilePicInput);
+                const storageRef = storage.ref('profile_pictures/' + profilePicInput.name);
+                storageRef.put(profilePicInput).then(snapshot => {
+                    snapshot.ref.getDownloadURL().then(url => {
+                        savePost(username, url, thought);
+                    });
+                });
             } else {
-                createPostElement(username, profilePicURL, thought);
+                savePost(username, "https://via.placeholder.com/50", thought);
             }
         }
 
-        function createPostElement(username, profilePicURL, thought) {
+        function savePost(username, profilePicURL, thought) {
+            const postRef = database.ref("posts").push();
+            postRef.set({ username, profilePicURL, thought });
+        }
+
+        function loadPosts() {
             const postContainer = document.getElementById("posts");
-            const post = document.createElement("div");
-            post.classList.add("post");
-            post.dataset.owner = userId;
-            post.innerHTML = `
-                <img src="${profilePicURL}" class="profile-pic">
-                <div class="post-content">
-                    <strong>${username}</strong>
-                    <p contenteditable="true" oninput="preventEdit(this)">${thought}</p>
-                    <button class="like-btn" onclick="likePost(this)">❤️ Like (<span>0</span>)</button>
-                    <button class="reply-btn" onclick="toggleReply(this)">💬 Reply</button>
-                    <div class="reply-section">
-                        <input type="text" class="reply-username" placeholder="Enter your username (required)">
-                        <input type="text" class="reply-input" placeholder="Write a reply...">
-                        <button onclick="addReply(this)">Post Reply</button>
+            postContainer.innerHTML = "";
+            database.ref("posts").on("child_added", snapshot => {
+                const post = snapshot.val();
+                const postElement = document.createElement("div");
+                postElement.classList.add("post");
+                postElement.innerHTML = `
+                    <img src="${post.profilePicURL}" class="profile-pic">
+                    <div>
+                        <strong>${post.username}</strong>
+                        <p>${post.thought}</p>
                     </div>
-                </div>
-            `;
-            postContainer.prepend(post);
-        }
-
-        function likePost(button) {
-            let likeCount = button.querySelector("span").innerText;
-            likeCount = parseInt(likeCount) + 1;
-            button.querySelector("span").innerText = likeCount;
-        }
-
-        function toggleReply(button) {
-            const replySection = button.nextElementSibling;
-            replySection.style.display = replySection.style.display === "block" ? "none" : "block";
-        }
-
-        function addReply(button) {
-            const replyUsername = button.previousElementSibling.previousElementSibling;
-            const replyInput = button.previousElementSibling;
-            
-            if (!replyUsername.value) {
-                alert("Username is required to reply!");
-                return;
-            }
-            if (!replyInput.value) return;
-
-            const replyDiv = document.createElement("div");
-            replyDiv.style.marginLeft = "20px";
-            replyDiv.innerHTML = `<strong>${replyUsername.value}:</strong> ${replyInput.value}`;
-            button.parentElement.appendChild(replyDiv);
-            replyInput.value = "";
-            replyUsername.value = "";
-        }
-
-        function preventEdit(element) {
-            if (element.parentElement.parentElement.dataset.owner !== userId) {
-                element.contentEditable = "false";
-            }
+                `;
+                postContainer.appendChild(postElement);
+            });
         }
     </script>
 </body>
